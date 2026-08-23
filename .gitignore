@@ -2,10 +2,6 @@
 dump/*
 !dump/.gitkeep
 
-# 研究资料归档：第三方音频的衍生整理稿，版权原因仅本地保留
-# （justinsun研究/ 下自己撰写的笔记不受此规则影响，可正常提交）
-justinsun研究/podcast/
-
 # 私密配置（本地环境变量，绝不提交）
 .env
 .env.*
