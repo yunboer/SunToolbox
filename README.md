@@ -23,6 +23,7 @@ claude
 | --- | --- |
 | [`hello`](./.claude/skills/hello/SKILL.md) | 示例技能：问候并显示当前环境信息 |
 | [`mp3-to-article`](./.claude/skills/mp3-to-article/SKILL.md) | MP3 转文章：GLM-ASR 并行转写 + subagent 润色成文（需 `.env` 配置 `GLM_API_KEY`） |
+| [`podcast-to-twitter`](./.claude/skills/podcast-to-twitter/SKILL.md) | 播客文档转推特稿：中英双语、单推+thread、双口吻，支持单篇提炼与跨篇主题聚合 |
 
 ## 如何添加新技能
 
