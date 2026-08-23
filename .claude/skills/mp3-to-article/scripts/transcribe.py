@@ -62,14 +62,15 @@ def probe_duration(path: Path) -> float:
 
 
 def slice_audio(path: Path, tmpdir: Path) -> list[Path]:
-    """把音频切成 ≤SEGMENT_SECONDS 的 mp3 片段，返回片段列表。"""
+    """切成 ≤SEGMENT_SECONDS 的 mp3 片段，统一重编码为 16kHz 单声道。
+
+    GLM-ASR 仅支持单声道（错误码 1214）；-vn 去掉内嵌封面等视频流。
+    """
     cmd = ["ffmpeg", "-v", "error", "-i", str(path),
-           "-f", "segment", "-segment_time", str(SEGMENT_SECONDS)]
-    if path.suffix.lower() == ".mp3":
-        cmd += ["-c", "copy"]                        # mp3 → mp3 流复制，快且无损
-    else:
-        cmd += ["-c:a", "libmp3lame", "-q:a", "5"]   # 其他格式重编码为 mp3
-    cmd.append(str(tmpdir / "seg_%04d.mp3"))
+           "-f", "segment", "-segment_time", str(SEGMENT_SECONDS),
+           "-vn", "-ac", "1", "-ar", "16000",
+           "-c:a", "libmp3lame", "-q:a", "5",
+           str(tmpdir / "seg_%04d.mp3")]
     subprocess.run(cmd, check=True)
     return sorted(tmpdir.glob("seg_*.mp3"))
 
