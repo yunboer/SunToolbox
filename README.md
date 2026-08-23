@@ -22,6 +22,7 @@ claude
 | 技能 | 说明 |
 | --- | --- |
 | [`hello`](./.claude/skills/hello/SKILL.md) | 示例技能：问候并显示当前环境信息 |
+| [`mp3-to-article`](./.claude/skills/mp3-to-article/SKILL.md) | MP3 转文章：GLM-ASR 并行转写 + subagent 润色成文（需 `.env` 配置 `GLM_API_KEY`） |
 
 ## 如何添加新技能
 
