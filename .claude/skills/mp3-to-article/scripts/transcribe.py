@@ -139,7 +139,8 @@ def transcribe_segment_with_retry(seg: Path, api_key: str, prompt: str) -> str:
             return transcribe_segment_glm(seg, api_key, prompt)
         except urllib.error.HTTPError as e:
             detail = http_error_detail(e)
-            if "code=1301" in detail or "code=1214" in detail:
+            # 1301=内容安全过滤；1214=段格式不支持；1210=参数错误（实测坏段也会触发）
+            if any(c in detail for c in ("code=1301", "code=1214", "code=1210")):
                 raise SegmentFiltered(seg.name) from e
             if e.code in FATAL_HTTP_CODES:
                 raise RuntimeError(f"片段 {seg.name} 请求被拒（{detail}）") from e
