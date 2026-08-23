@@ -21,7 +21,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).parent / "transcribe.py"
 DEFAULT_WORKERS = 8
-AUDIO_EXTS = {".mp3", ".wav"}
+AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 
 
 def clean_name(stem: str) -> str:
