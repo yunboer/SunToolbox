@@ -135,6 +135,8 @@ def transcribe_glm(path: Path, keep_temp: bool = False) -> str:
     api_key = os.environ.get("GLM_API_KEY", "").strip()
     if not api_key:
         sys.exit("错误：未配置 GLM_API_KEY。请在仓库根 .env 中填写（参考 .env.example）。")
+    if api_key.startswith("<"):
+        sys.exit("错误：GLM_API_KEY 还是占位符，请编辑仓库根 .env 填入真实 key。")
 
     duration = probe_duration(path)
     n_estimate = max(1, int(duration // SEGMENT_SECONDS) + 1)
