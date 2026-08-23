@@ -109,6 +109,25 @@ def transcribe_segment_glm(seg: Path, api_key: str, prompt: str) -> str:
 
 
 FATAL_HTTP_CODES = {400, 401, 403, 404}  # 认证/参数类错误，重试无意义
+FILTER_PLACEHOLDER = "\n\n[⚠ 此段音频被转写服务判定为敏感内容（错误码 1301），未转写]\n\n"
+
+
+class SegmentFiltered(Exception):
+    """单段无法转写，以占位符替代后继续。
+
+    触发情形：1301=内容被服务端安全过滤；1214=段文件损坏/格式不支持
+    （如源音频局部坏帧切出的无效段）。若过半段都失败则视为系统性问题。
+    """
+
+
+def http_error_detail(e: urllib.error.HTTPError) -> str:
+    """读取 HTTP 错误响应体，返回可读的错误描述（含服务端 code/message）。"""
+    try:
+        body = e.read().decode("utf-8", "replace")
+        err = json.loads(body).get("error", {})
+        return f"HTTP {e.code} code={err.get('code', '?')}：{err.get('message', body[:120])}"
+    except Exception:
+        return f"HTTP {e.code}"
 
 
 def transcribe_segment_with_retry(seg: Path, api_key: str, prompt: str) -> str:
@@ -119,10 +138,12 @@ def transcribe_segment_with_retry(seg: Path, api_key: str, prompt: str) -> str:
         try:
             return transcribe_segment_glm(seg, api_key, prompt)
         except urllib.error.HTTPError as e:
+            detail = http_error_detail(e)
+            if "code=1301" in detail or "code=1214" in detail:
+                raise SegmentFiltered(seg.name) from e
             if e.code in FATAL_HTTP_CODES:
-                raise RuntimeError(
-                    f"请求被拒（HTTP {e.code}），请检查 GLM_API_KEY 是否正确") from e
-            last_err = e
+                raise RuntimeError(f"片段 {seg.name} 请求被拒（{detail}）") from e
+            last_err = RuntimeError(detail)
         except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
             last_err = e
         if attempt < MAX_RETRIES:
@@ -155,9 +176,14 @@ def transcribe_glm(path: Path, keep_temp: bool = False, workers: int = 1) -> str
             # 串行链式：每段携带前文作为上下文，保证切口衔接与术语一致
             for i, seg in enumerate(segments):
                 prompt = "".join(texts[:i])[-PROMPT_TAIL_CHARS:]
-                texts[i] = transcribe_segment_with_retry(seg, api_key, prompt)
-                print(f"  [{i + 1}/{total}] {seg.name} ✓（{len(texts[i])} 字）",
-                      file=sys.stderr)
+                try:
+                    texts[i] = transcribe_segment_with_retry(seg, api_key, prompt)
+                    print(f"  [{i + 1}/{total}] {seg.name} ✓（{len(texts[i])} 字）",
+                          file=sys.stderr)
+                except SegmentFiltered:
+                    texts[i] = FILTER_PLACEHOLDER
+                    print(f"  [{i + 1}/{total}] {seg.name} ⚠ 内容被服务端过滤，占位跳过",
+                          file=sys.stderr)
         else:
             # 并行：段间无上下文，速度优先；切口衔接问题交给润色阶段
             with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -167,12 +193,22 @@ def transcribe_glm(path: Path, keep_temp: bool = False, workers: int = 1) -> str
                 done = 0
                 for fut in as_completed(future_map):
                     i = future_map[fut]
-                    texts[i] = fut.result()
                     done += 1
-                    print(f"  [{done}/{total}] {segments[i].name} ✓（{len(texts[i])} 字）",
-                          file=sys.stderr)
+                    try:
+                        texts[i] = fut.result()
+                        print(f"  [{done}/{total}] {segments[i].name} ✓（{len(texts[i])} 字）",
+                              file=sys.stderr)
+                    except SegmentFiltered:
+                        texts[i] = FILTER_PLACEHOLDER
+                        print(f"  [{done}/{total}] {segments[i].name} ⚠ 内容被服务端过滤，占位跳过",
+                              file=sys.stderr)
 
         print(f"  转写耗时 {time.time() - t0:.0f}s（workers={workers}）", file=sys.stderr)
+        filtered = sum(1 for t in texts if t == FILTER_PLACEHOLDER)
+        if filtered > total // 2:
+            raise RuntimeError(
+                f"{filtered}/{total} 段无法转写（内容过滤/损坏），"
+                "疑似系统性问题（如格式不受支持），请检查音频源")
         return "".join(texts)
     finally:
         if keep_temp:
