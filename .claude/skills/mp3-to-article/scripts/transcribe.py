@@ -25,6 +25,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # .claude/skills/mp3-to-article/scripts/ → 上溯 4 级到仓库根
@@ -132,7 +133,7 @@ def transcribe_segment_with_retry(seg: Path, api_key: str, prompt: str) -> str:
     raise RuntimeError(f"片段 {seg.name} 转写失败（已重试 {MAX_RETRIES} 次）: {last_err}")
 
 
-def transcribe_glm(path: Path, keep_temp: bool = False) -> str:
+def transcribe_glm(path: Path, keep_temp: bool = False, workers: int = 1) -> str:
     api_key = os.environ.get("GLM_API_KEY", "").strip()
     if not api_key:
         sys.exit("错误：未配置 GLM_API_KEY。请在仓库根 .env 中填写（参考 .env.example）。")
@@ -146,12 +147,32 @@ def transcribe_glm(path: Path, keep_temp: bool = False) -> str:
     tmpdir = Path(tempfile.mkdtemp(prefix="stb_segs_"))
     try:
         segments = slice_audio(path, tmpdir)
-        texts: list[str] = []
-        for i, seg in enumerate(segments, 1):
-            prompt = "".join(texts)[-PROMPT_TAIL_CHARS:]
-            text = transcribe_segment_with_retry(seg, api_key, prompt)
-            texts.append(text)
-            print(f"  [{i}/{len(segments)}] {seg.name} ✓（{len(text)} 字）", file=sys.stderr)
+        total = len(segments)
+        texts: list[str] = [""] * total
+        t0 = time.time()
+
+        if workers <= 1:
+            # 串行链式：每段携带前文作为上下文，保证切口衔接与术语一致
+            for i, seg in enumerate(segments):
+                prompt = "".join(texts[:i])[-PROMPT_TAIL_CHARS:]
+                texts[i] = transcribe_segment_with_retry(seg, api_key, prompt)
+                print(f"  [{i + 1}/{total}] {seg.name} ✓（{len(texts[i])} 字）",
+                      file=sys.stderr)
+        else:
+            # 并行：段间无上下文，速度优先；切口衔接问题交给润色阶段
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                future_map = {
+                    pool.submit(transcribe_segment_with_retry, seg, api_key, ""): i
+                    for i, seg in enumerate(segments)}
+                done = 0
+                for fut in as_completed(future_map):
+                    i = future_map[fut]
+                    texts[i] = fut.result()
+                    done += 1
+                    print(f"  [{done}/{total}] {segments[i].name} ✓（{len(texts[i])} 字）",
+                          file=sys.stderr)
+
+        print(f"  转写耗时 {time.time() - t0:.0f}s（workers={workers}）", file=sys.stderr)
         return "".join(texts)
     finally:
         if keep_temp:
@@ -160,7 +181,7 @@ def transcribe_glm(path: Path, keep_temp: bool = False) -> str:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def transcribe_mlx(path: Path, keep_temp: bool = False) -> str:
+def transcribe_mlx(path: Path, keep_temp: bool = False, workers: int = 1) -> str:
     sys.exit("mlx 后端尚未实现（计划：pip install mlx-whisper 后本地转写，免费无需 key）。"
              "当前请使用 --backend glm。")
 
@@ -180,6 +201,9 @@ def main() -> None:
                         help="转写后端（默认 glm）")
     parser.add_argument("--keep-temp", action="store_true",
                         help="保留切片临时目录（调试用）")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="段级并行数（默认 1 = 串行链式上下文，质量优先；"
+                             ">1 = 段间无上下文并行，速度优先）")
     args = parser.parse_args()
 
     if not args.audio.exists():
@@ -188,7 +212,8 @@ def main() -> None:
     load_env()
     print(f"[{args.backend}] 转写 {args.audio.name} ...", file=sys.stderr)
     try:
-        text = BACKENDS[args.backend](args.audio, keep_temp=args.keep_temp)
+        text = BACKENDS[args.backend](args.audio, keep_temp=args.keep_temp,
+                                      workers=args.workers)
     except RuntimeError as e:
         sys.exit(f"错误：{e}")
 
