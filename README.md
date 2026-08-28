@@ -14,8 +14,14 @@ claude
 
 使用方式：
 
-- 输入 `/技能名` 手动调用，例如 `/hello`
+- 输入 `/技能名` 手动调用，例如 `/mp3-to-article`
 - 或直接用自然语言描述需求，Claude 会自动匹配合适的技能
+
+## 依赖说明
+
+基础使用零依赖；个别技能有前置要求：
+
+- `mp3-to-article`：需系统安装 [ffmpeg](https://ffmpeg.org/)（含 ffprobe），并在仓库根 `.env` 配置 `GLM_API_KEY`（参考 `.env.example`，key 在[智谱开放平台](https://open.bigmodel.cn/)获取）
 
 ## 技能列表
 
@@ -32,7 +38,7 @@ claude
 3. 如有辅助脚本、参考文档，一并放在该目录中，在 `SKILL.md` 里引用
 4. 更新上方技能列表，提交推送
 
-技能格式可参考 [`hello`](./.claude/skills/hello/SKILL.md)。
+技能格式可参考 [`mp3-to-article`](./.claude/skills/mp3-to-article/SKILL.md)（含脚本引用）或 [`claude-autoperm`](./.claude/skills/claude-autoperm/SKILL.md)（最简结构）。
 
 ## License
 

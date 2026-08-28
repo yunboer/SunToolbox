@@ -5,7 +5,7 @@
 ## 添加新技能
 
 1. 在 `.claude/skills/` 下新建目录，目录名即技能名（kebab-case，如 `my-tool`）
-2. 创建 `SKILL.md`：frontmatter 必须含 `name`、`description`，正文为执行指令（可参考 `.claude/skills/hello/SKILL.md`）
+2. 创建 `SKILL.md`：frontmatter 必须含 `name`、`description`，正文为执行指令（可参考现有技能，如 `.claude/skills/claude-autoperm/SKILL.md`）
 3. 辅助脚本、参考文档放在同一技能目录中，在 `SKILL.md` 里引用相对路径
 4. 更新 `README.md` 中的技能列表表格
 5. 提交并推送

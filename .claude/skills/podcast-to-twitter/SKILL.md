@@ -66,7 +66,9 @@ description: 把播客文档（转写稿/文章/一批文档）总结成可直�
 ## 输出与归档
 
 - 先在会话中直接展示全部稿子供用户挑选
-- 归档遵循全局规则（~/.claude/CLAUDE.md）：存入 `/Users/sunyuxiang/Documents/hermesnote`
-  对应主题目录（源文档若无既有目录，可在 hermesnote 根下按主题新建，如 `justinsun研究/tweets/`）
-- 文件为 Markdown，批量产出时附 INDEX.md；存入后 commit + push hermesnote
-- 用户指定输出位置时以用户为准
+- 归档位置按以下优先级确定（不要写死任何机器特定路径）：
+  1. 用户当场指定的位置（最优先）
+  2. `.env` 中的 `HERMESNOTE_DIR`（笔记库/归档根目录，见 `.env.example`）：
+     存入对应主题子目录；无既有目录时在根下按主题新建（如 `<主题>/tweets/`）
+  3. 未配置且用户未指定时询问一次；用户不指定则存 `dump/tweets/<主题>/`
+- 文件为 Markdown，批量产出时附 INDEX.md；归档目录若是 git 仓库则按其工作流 commit + push，否则仅保存
