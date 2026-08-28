@@ -25,9 +25,16 @@ AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 
 
 def clean_name(stem: str) -> str:
-    """清洗输出名：去掉中括号后缀（如「[售后：VX：xxx]」），编号后补连字符。"""
-    name = re.sub(r"\[.*?\]", "", stem).strip() or stem
-    return re.sub(r"^(\d+)\s*", r"\1-", name)
+    """清洗输出名：去掉半角方括号片段（如「[售后：VX：xxx]」）及落单的半角方括号，
+    编号后统一为单个连字符（「079 xxx」/「079xxx」→「079-xxx」；纯编号不加连字符）。"""
+    name = re.sub(r"\[.*?\]", "", stem)
+    name = name.replace("[", "").replace("]", "").strip()
+    name = name or stem
+    m = re.match(r"^(\d+)\s*(.*)$", name)
+    if m:
+        rest = m.group(2).lstrip(" \t-")
+        name = f"{m.group(1)}-{rest}" if rest else m.group(1)
+    return name
 
 
 def collect_inputs(paths: list[Path]) -> list[Path]:
@@ -66,12 +73,13 @@ def main() -> None:
     parser.add_argument("-o", "--out-dir", type=Path, default=Path("dump/transcripts"),
                         help="转写稿输出目录（默认 dump/transcripts）")
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
-                        help=f"文件级并行数（默认 {DEFAULT_WORKERS}，实测饱和点）")
+                        help=f"文件级并行数（默认 {DEFAULT_WORKERS}，实测饱和点；"
+                             "注意与 transcribe.py 的段级 --workers 含义不同）")
     args = parser.parse_args()
 
     files = collect_inputs(args.inputs)
     if not files:
-        sys.exit("错误：未找到任何音频文件（支持 mp3/wav）")
+        sys.exit(f"错误：未找到任何音频文件（支持 {'/'.join(sorted(AUDIO_EXTS))}）")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     print(f"批量转写：{len(files)} 个文件，并行 {min(args.workers, len(files))}",
           file=sys.stderr)

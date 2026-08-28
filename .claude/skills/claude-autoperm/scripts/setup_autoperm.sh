@@ -37,7 +37,8 @@ try:
 except Exception:
     cfg = {}
 
-# 推荐白名单：只读/常用/低破坏性命令；刻意不含 rm、sudo、curl 外发等高危项
+# 推荐白名单：只读/低破坏性命令；刻意不含 rm、sudo、curl/wget 外发等高危项。
+# 已知取舍（详见 SKILL.md「安全边界」）：cp/mv 可覆盖工作区外文件；git push 自动通过。
 RECOMMENDED = [
     # 文件查看与检索
     "Bash(ls:*)", "Bash(cat:*)", "Bash(head:*)", "Bash(tail:*)",
@@ -45,14 +46,19 @@ RECOMMENDED = [
     "Bash(uname:*)", "Bash(pwd)",
     # 文件整理（不含删除）
     "Bash(mkdir:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(touch:*)",
-    # git 常用闭环
+    # git 常用闭环（push 属对外动作，自动通过适合个人机；敏感环境请自行移除）
     "Bash(git status)", "Bash(git log:*)", "Bash(git diff:*)",
     "Bash(git add:*)", "Bash(git commit:*)", "Bash(git push:*)", "Bash(git pull:*)",
-    # 开发工具链
-    "Bash(python3:*)", "Bash(pip3 list)", "Bash(node:*)", "Bash(npm run:*)",
+    # 本仓库技能脚本：python3 仅放行 .claude/skills/ 下的调用，不放行任意代码执行
+    "Bash(python3 .claude/skills/:*)", "Bash(pip3 list)",
     # 音视频处理（SunToolbox 常用）
     "Bash(ffmpeg:*)", "Bash(ffprobe:*)",
 ]
+
+# 默认不注入的高风险项（等效放行任意代码执行，确认需要时手动加入 allow 列表）：
+#   "Bash(python3:*)"   任意 Python 脚本/代码
+#   "Bash(node:*)"      任意 Node 脚本
+#   "Bash(npm run:*)"   任意 package.json 脚本
 
 perms = cfg.setdefault("permissions", {})
 allow = perms.setdefault("allow", [])
