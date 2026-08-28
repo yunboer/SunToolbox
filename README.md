@@ -29,6 +29,7 @@ claude
 | --- | --- |
 | [`mp3-to-article`](./.claude/skills/mp3-to-article/SKILL.md) | MP3 转文章：GLM-ASR 并行转写 + subagent 润色成文（需 `.env` 配置 `GLM_API_KEY`） |
 | [`podcast-to-twitter`](./.claude/skills/podcast-to-twitter/SKILL.md) | 播客文档转推特稿：中英双语、单推+thread、双口吻，支持单篇提炼与跨篇主题聚合 |
+| [`viral-tweet`](./.claude/skills/viral-tweet/SKILL.md) | 自媒体流量方法论：从播客拆高传播信息点，按 X 流量机制写高打开率推文（钩子库 + 算法机制 + 自检清单 + 复盘） |
 | [`claude-autoperm`](./.claude/skills/claude-autoperm/SKILL.md) | 一键配置 Claude Code 权限白名单：自动检测系统、备份配置、注入安全命令白名单，可选 shell 启动别名 |
 
 ## 如何添加新技能
